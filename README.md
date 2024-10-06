@@ -4,7 +4,7 @@ This code accompanies the paper.
 
 Lasso and Relaxed Lasso Behaviors Using Cyclic Coordinate Descent for Low Dimensional Real Datasets by Maulida Yanti,  Putri K Nasution & Enita Dewi T
 
-Experiments
+
 Experiments with two datasets were developed that you can find in the following scripts:
 
 Dataset
