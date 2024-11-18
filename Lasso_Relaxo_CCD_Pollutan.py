@@ -152,7 +152,7 @@ def Relaxo_best_param(lamda, gamma, initial_theta,trainvalid_data, trainvalid_y,
 
 
 # ##################INPUT##########################
-path_data = "Result/pollutan_0.5/"  #"Result/30_it_100_lambda/"
+path_data = "Result/pollutan/"  #"Result/30_it_100_lambda/"
 data=pd.DataFrame(pd.read_csv('pollutan.csv'))
 features=['NOx','SO₂','CO','OC','NMVOC','BC','NH₃']
 output=['Y']
@@ -161,7 +161,7 @@ X=get_numpy_data(data, features)/100000
 y=get_numpy_data(data, output)
 X_standardized, std = normalize_features(X)
 y_centered = centered_output(y)
-t_size=0.5
+t_size=0.3
 trainvalid_data,test_data = train_test_split(X, test_size=t_size, random_state=0)
 trainvalid_y,test_y = train_test_split(y, test_size=t_size, random_state=0)
 trainvalid_data_standardized, std_tv = normalize_features(trainvalid_data)
@@ -179,60 +179,6 @@ fold=5
 Coeff = ['$\\beta_1$', '$\\beta_2$', '$\\beta_3$', '$\\beta_4$', '$\\beta_5$', '$\\beta_6$', '$\\beta_7$']                        
 featureslabel = ['$X_1$', '$X_2$', '$X_3$', '$X_4$', '$X_5$', '$X_6$', '$X_7$']
 bt=50 #number of iteration for bootstrap
-
-
-
-##################FIGURE 1 - Scatter Plot ##########################
-fp=['SO₂','OC']
-Xp=get_numpy_data(data, fp)/100000
-yp=get_numpy_data(data, output)
-fig, axs = plt.subplots(1,2, figsize=(4, 2))
-plt.subplots_adjust(left=0.125, right=0.9, bottom = 0.1, top = 0.9, wspace=0.3, hspace=0.4)
-for i, ax in enumerate(axs.flatten()):
-    ax.scatter(Xp[:,i], yp, s=5 , c='g')
-    ax.set(xlabel=fp[i],ylabel="Death rate") #Death rate from air pollution
-    ax.xaxis.get_label().set_fontsize(8)
-    ax.yaxis.get_label().set_fontsize(8)
-    ax.tick_params(axis='both',labelsize=8)
-plt.tight_layout()
-plt.savefig(path_data+'img1_p.png') 
-plt.close()
-
-
-
-#################FIGURE 2 - CORRELATION MATRIX - Heat MAP##################
-fig, axs = plt.subplots(1,1, figsize=(5, 3))
-plt.subplots_adjust(left=0.1, right=1, bottom = 0.1, top = 0.95, wspace=0, hspace=0)
-dataset = data[features]
-matrix = dataset.corr()
-hm=sns.heatmap(matrix,  annot=True, ax=axs, annot_kws={"fontsize":6}) # xticklabels=[4,8,16,32,64,128],yticklabels=[2,4,6,8]
-cax = hm.figure.axes[-1]
-cax.tick_params(labelsize=6)
-plt.tick_params(axis='both',labelsize=6)
-plt.tight_layout()
-plt.savefig(path_data+'img2_heatmap_p.png') 
-plt.close()
-
-
-
-##################FIGURE 3 LASSO COEFFICIENT PATH- ##########################
-theta_list = list()
-# Run lasso regression for each lambda
-for l in lamda:
-    theta = coordinate_descent_lasso(initial_theta,trainvalid_data_standardized, trainvalid_y_centered,lamda=l, tol=1e-2)#/std
-    theta_list.append(theta)
-theta_lasso = np.stack(theta_list)
-plt.figure(figsize = (6,4))
-for i in range(n):
-    plt.plot(lamda, theta_lasso[:,i], label = features[i])
-plt.xscale('log')
-plt.xlabel('Log($\\lambda$)',fontsize=8)
-plt.ylabel('Coefficients',fontsize=8)
-plt.legend(fontsize=6)
-plt.tick_params(axis='both',labelsize=8 )
-plt.axis('tight')
-plt.savefig(path_data+'img3_p.png')
-plt.close()
 
 
 
@@ -286,68 +232,6 @@ np.savetxt(path_data+"bestlasso_0.csv", bestlasso_0, delimiter=",")
 
 
 
-##################FIGURE 4 Relaxo COEFFICIENT PATH, best gamma- ##########################
-theta_list = list()
-# Run relaxo regression for each lambda, best gamma
-t=best_cvmse[1]
-print(t)
-for l in lamda:
-    # theta = coordinate_descent_lasso(initial_theta,X_standardized,y_centered,lamda=l, tol=1e-2)/std
-    theta_lasso = coordinate_descent_lasso(initial_theta,trainvalid_data_standardized, trainvalid_y_centered,lamda=l, tol=1e-2)
-    theta_LSf=theta_LS_full (theta_lasso, trainvalid_data_standardized, trainvalid_y_centered)
-    theta_relaxo=(t*theta_lasso+(1-t)*theta_LSf)# /std for ori_thetarelaxo_tv
-    theta_list.append(theta_relaxo)
-theta_relaxo = np.stack(theta_list)
-plt.figure(figsize = (6,4))
-for i in range(n):
-    plt.plot(lamda, theta_relaxo[:,i], label = features[i])
-plt.xscale('log')
-plt.xlabel('Log($\\lambda$)',fontsize=8)
-plt.ylabel('Coefficients ($\\gamma=0.1$)', fontsize=8)
-plt.legend(fontsize=6)
-plt.tick_params(axis='both',labelsize=8 )
-plt.axis('tight')
-plt.savefig(path_data+'img4_p.png')
-plt.close()
-
-
-
-##################FIGURE 5 Average MSE Cross Validation Relaxo- ##########################
-color1 = ['black', 'gold', 'tomato', 'darkkhaki', 'darkseagreen', 'aquamarine', 'dodgerblue', 'plum', 'blue', 
-'green', 'red', 'cyan', 'lime', 'indigo', 'fuchsia', 'navy', 'pink', 'orange','violet','silver','teal']
-plt.figure(figsize = (6,4))
-ax = host_subplot(111)
-ax2 = ax.twin()  # ax2 is responsible for "top" axis and "right" axis
-j=0
-for t in gamma :
-    plt.plot(AECV_lambda[AECV_lambda[:,1]==t][:,0], AECV_lambda[AECV_lambda[:,1]==t][:,2], '--', color=color1[j],lw=0.5, ms=2, label=round(t, 1))
-    j=j+1
-plt.plot(best_cvmse[0], best_cvmse[2], 'x', color='red', ms=3)
-plt.plot(bestlasso_0[0], bestlasso_0[2], 'x', color='black', ms=3)
-plt.tick_params(axis='both',labelsize=8)  
-plt.xscale('log')
-plt.xlabel('Log($\\lambda$)', fontsize=8)
-plt.ylabel('CV Mean Squared Error',fontsize=8)
-plt.legend(title = "$\\gamma$", fontsize = 6, title_fontsize=6)   
-ax2.set_xticks(keeplasso[:,0],labels=keeplasso[:,n+4].astype(int))
-ax2.set_yticks([],color='w')
-ax2.tick_params(axis='both',labelsize=6)
-ax2.set_xlabel('Number Non Zero Coefficient', fontsize=6)
-ax2.axis["right"].major_ticklabels.set_visible(False)
-ax2.axis["top"].major_ticklabels.set_visible(True)
-plt.savefig(path_data+'img5_p.png')
-plt.close()
-
-
-
-####RANK of Train Valid Data#########
-I=np.zeros((50,2)) # cekranktvdata
-for i in range(50):
-    trainvalid_data,test_data = train_test_split(X, test_size=t_size, random_state=i)
-    I[i, :] = [np.linalg.matrix_rank(trainvalid_data),np.linalg.matrix_rank(test_data)]
-np.savetxt(path_data+"ranktvdata.csv", I, delimiter=",") 
-
-
 
 ###################################BOOTSTRAP###########################################
 BEST = np.zeros((bt,12+n))
@@ -372,10 +256,8 @@ for rdm in range(bt):
     print(AECV_lambda[:, 4+n].flatten())
     BEST[rdm,0]=rdm
     BEST[rdm,1:6+n] = best_cvmse
-    # y_tv_pred = np.dot(trainvalid_data,best_cvmse[4:n+4]).reshape(-1,1)
     y_tv_pred = predict_output(trainvalid_data,best_cvmse[4:n+4], best_cvmse[3]).reshape(-1,1)
     BEST[rdm,6+n]= get_MSE(trainvalid_y, y_tv_pred) #mse tv
-    # y_test_pred = np.dot(test_data,best_cvmse[4:n+4]).reshape(-1,1)
     y_test_pred = predict_output(test_data,best_cvmse[4:n+4], best_cvmse[3]).reshape(-1,1)
     BEST[rdm,7+n]= get_MSE(test_y, y_test_pred) #mse tes->pmse
     BEST[rdm,8+n]=get_Rsquare(trainvalid_y, y_tv_pred)# Rsquare tv
@@ -390,10 +272,8 @@ for rdm in range(bt):
         keeprelaxo[r,0] =rdm
         A= AECV_lambda[AECV_lambda[:,4+n]==i][:,:]
         keeprelaxo[r,1:n+6]=A[np.argmin(A[:,2],0),:] #lamdamin, cvmse 
-        # y_tv_pred = np.dot(trainvalid_data,keeprelaxo[r,5:n+5]).reshape(-1,1)
         y_tv_pred = predict_output(trainvalid_data,keeprelaxo[r,5:n+5], keeprelaxo[r,4]).reshape(-1,1)
         keeprelaxo[r,n+6]= get_MSE(trainvalid_y, y_tv_pred) #mse tv
-        # y_test_pred = np.dot(test_data,keeprelaxo[r,5:n+5]).reshape(-1,1)
         y_test_pred =predict_output(test_data,keeprelaxo[r,5:n+5], keeprelaxo[r,4]).reshape(-1,1)
         keeprelaxo[r,n+7]= get_MSE(test_y, y_test_pred) #mse tes->pmse
         keeprelaxo[r,8+n]=get_Rsquare(trainvalid_y, y_tv_pred)# Rsquare tv
@@ -409,10 +289,8 @@ for rdm in range(bt):
         keeplasso[s,0] =rdm
         B= lassoest[lassoest[:,4+n]==i][:,:]
         keeplasso[s,1:n+6]=B[np.argmin(B[:,2],0),:] #lamdamin, cvmse 
-        # y_tv_pred = np.dot(trainvalid_data,keeplasso[s,5:n+5]).reshape(-1,1)
         y_tv_pred = predict_output(trainvalid_data,keeplasso[s,5:n+5], keeplasso[s,4]).reshape(-1,1)
         keeplasso[s,n+6]= get_MSE(trainvalid_y, y_tv_pred) #mse tv
-        # y_test_pred = np.dot(test_data,keeplasso[s,5:n+5]).reshape(-1,1)
         y_test_pred = predict_output(test_data,keeplasso[s,5:n+5], keeplasso[s,4]).reshape(-1,1)
         keeplasso[s,n+7]= get_MSE(test_y, y_test_pred) #mse tes->pmse
         keeplasso[s,8+n]=get_Rsquare(trainvalid_y, y_tv_pred)# Rsquare tv
@@ -423,20 +301,11 @@ for rdm in range(bt):
     T=keeplasso[0:s,:]
     T_T=T[T[:,0]==rdm,:]
     bestlasso[rdm, :]=T_T[np.argmin(T_T[:,3],0),:]
-    # ol = linear_model.LinearRegression()
-    # ol.fit( trainvalid_data_standardized, trainvalid_y_centered)
-    # ols[rdm, 0:n]= ol.coef_/std_tv
-    # ols[rdm, n]=np.count_nonzero(ols[rdm, 0:n])
-    # y_tv_pred = np.dot(trainvalid_data, ols[rdm, 0:n]).reshape(-1,1)
-    # ols[rdm, n+1]= get_MSE(trainvalid_y, y_tv_pred) #mse tv
-    # y_test_pred = np.dot(test_data, ols[rdm, 0:n]).reshape(-1,1)
-    # ols[rdm, n+2]= get_MSE(test_y, y_test_pred) #mse tes->pmse
 keep_relaxo = keeprelaxo [0:r,:]
 keep_lasso = keeplasso [0:s,:] 
 np.savetxt(path_data+"BEST.csv", BEST, delimiter=",")
 np.savetxt(path_data+"bootstrap_keep_relaxo.csv", keep_relaxo, delimiter=",")
 np.savetxt(path_data+"bootstrap_keep_lasso.csv", keep_lasso, delimiter=",")
-# np.savetxt(path_data+"bootstrap_ols.csv", ols, delimiter=",")
 np.savetxt(path_data+"bootstrap_sort_features.csv", sort_features, delimiter=",")
 np.savetxt(path_data+"bootstrap_bestlasso.csv", bestlasso, delimiter=",")
 
@@ -481,20 +350,27 @@ np.savetxt(path_data+"MeanSTD_Relaxo.csv", MeanSTD_Relaxo, delimiter=",")
 np.savetxt(path_data+"MeanSTD_Lasso.csv", MeanSTD_Lasso, delimiter=",")                                                                          
 
 
-#FIGURE 6 : Iteration Vs Features Rate
-plt.figure(figsize = (6,4))                        
-for t in range(n) :
-    plt.plot(np.linspace(0,bt-1,bt),sort_features[:,t], 'o--', lw=0.5, ms=2, label=featureslabel[t])
-plt.tick_params(axis='both',labelsize=8)  
+
+
+
+
+
+# #FIGURE 1 : Iteration Vs CVMSE
+plt.figure(figsize = (6,2.9))
+plt.plot(BEST[:,0],BEST[:,3], 'o:', color='red',lw=0.5, ms=2, label='CVMSE_Relaxo')
+plt.plot(bestlasso[:,0],bestlasso[:,3], 'o:', color='black',lw=0.5, ms=2, label='CVMSE_Lasso')
+plt.tick_params(axis='both',labelsize=6)   
+# plt.xscale('log')
 plt.xlabel('Iteration', fontsize=8)
-plt.ylabel('Features Rate',fontsize=8)
-plt.legend( fontsize = 6, loc='upper left')  
-plt.savefig(path_data+'img6_p.png')   
+plt.ylabel('CVMSE',fontsize=8)
+plt.legend( fontsize = 6)   
+plt.savefig(path_data+'img1_p.png') 
 plt.close()
 
 
 
-#FIGURE 7 : Iteration Vs NNZ
+###FIGURE 3####
+#####Iteration Vs NNZ#####
 plt.figure(figsize = (6,4))
 plt.plot(BEST[:,0],BEST[:,n+5], 'o--', color='red',lw=0.5, ms=2, label='Relaxo')
 plt.plot(bestlasso[:,0],bestlasso[:,n+5], 'o--', color='black',lw=0.5, ms=2, label='Lasso')
@@ -502,12 +378,9 @@ plt.tick_params(axis='both',labelsize=6)
 plt.xlabel('Iteration', fontsize=8)
 plt.ylabel('nnz',fontsize=8)
 plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img7_p.png') 
+plt.savefig(path_data+'img3a.png') 
 plt.close()
-
-
-
-# FIGURE 8: Histogram of NNZ
+# ###Histogram of NNZ###
 fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(2.5, 4))
 axes[1].hist(BEST[:, n+5].astype(int), color='red', edgecolor='black')
 axes[1].set_xlabel('nnz (relaxo)')
@@ -522,12 +395,9 @@ axes[0].tick_params(axis='both',labelsize=8)
 axes[0].yaxis.get_label().set_fontsize(8)
 axes[0].xaxis.get_label().set_fontsize(8)
 plt.tight_layout()
-plt.savefig(path_data+'img8_p.png') 
+plt.savefig(path_data+'img3b.png') 
 plt.close()
-
-
-
-##################FIGURE 9:  Box Plot##########################
+################## Box Plot##########################
 df1 = pd.DataFrame(BEST[:, 5:5+n], columns=Coeff)
 df2 = pd.DataFrame(bestlasso[:, 5:5+n], columns=Coeff)
 plt.figure(figsize = (3,3.2))
@@ -536,33 +406,21 @@ bplot=df1.boxplot(column=Coeff, vert=False, patch_artist=True, boxprops = dict(f
 plt.tick_params(axis='both',labelsize=6)  
 plt.xlabel('Coefficient (relaxo)', fontsize=8)
 plt.grid(visible=None)
-plt.savefig(path_data+'img9a_p.png') 
+plt.savefig(path_data+'img3c.png') 
 plt.figure(figsize = (3,3.2))
 bplot=df2.boxplot(column=Coeff, vert=False, patch_artist=True,  boxprops = dict(facecolor = "black", color='black'), whiskerprops=dict(color='black'), capprops=dict(color='black'),
  medianprops=dict(color='orange'), flierprops=dict(markerfacecolor='white', marker='o'))
 plt.tick_params(axis='both',labelsize=6)  
 plt.xlabel('Coefficient (lasso)', fontsize=8)
 plt.grid(visible=None)
-plt.savefig(path_data+'img9b_p.png') 
+plt.savefig(path_data+'img3d.png') 
 plt.close()
 
 
 
-#FIGURE 10 : Iteration Vs Error
-plt.figure(figsize = (6,4))
-plt.plot(BEST[:,0],BEST[:,n+6], 'o-', color='red',lw=0.5, ms=2, label='MSE_Relaxo')
-plt.plot(BEST[:,0],BEST[:,n+7], 'o--', color='red',lw=0.5, ms=2, label='PMSE_Relaxo')
-plt.plot(BEST[:,0],BEST[:,3], 'o:', color='red',lw=0.5, ms=2, label='CVMSE_Relaxo')
-plt.plot(bestlasso[:,0],bestlasso[:,n+6], 'o-', color='black',lw=0.5, ms=2, label='MSE_Lasso')
-plt.plot(bestlasso[:,0],bestlasso[:,n+7], 'o--', color='black',lw=0.5, ms=2, label='PMSE_Lasso')
-plt.plot(bestlasso[:,0],bestlasso[:,3], 'o:', color='black',lw=0.5, ms=2, label='CVMSE_Lasso')
-plt.tick_params(axis='both',labelsize=6)  
-plt.xlabel('Iteration', fontsize=8)
-plt.ylabel('Error Rate',fontsize=8)
-plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img10_p.png') 
-plt.close()
 
+
+#FIGURE 4 : Iteration Vs Error
 plt.figure(figsize = (6,2.9))
 plt.plot(BEST[:,0],BEST[:,n+6], 'o-', color='red',lw=0.5, ms=2, label='MSE_Relaxo')
 plt.plot(bestlasso[:,0],bestlasso[:,n+6], 'o-', color='black',lw=0.5, ms=2, label='MSE_Lasso')
@@ -571,7 +429,7 @@ plt.tick_params(axis='both',labelsize=6)
 plt.xlabel('Iteration', fontsize=8)
 plt.ylabel('MSE',fontsize=8)
 plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img10a_p.png') 
+plt.savefig(path_data+'img4a_p.png') 
 plt.close()
 
 plt.figure(figsize = (6,2.9))
@@ -582,67 +440,14 @@ plt.tick_params(axis='both',labelsize=6)
 plt.xlabel('Iteration', fontsize=8)
 plt.ylabel('PMSE',fontsize=8)
 plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img10b_p.png') 
-plt.close()
-
-plt.figure(figsize = (6,2.9))
-plt.plot(BEST[:,0],BEST[:,3], 'o:', color='red',lw=0.5, ms=2, label='CVMSE_Relaxo')
-plt.plot(bestlasso[:,0],bestlasso[:,3], 'o:', color='black',lw=0.5, ms=2, label='CVMSE_Lasso')
-plt.tick_params(axis='both',labelsize=6)   
-# plt.xscale('log')
-plt.xlabel('Iteration', fontsize=8)
-plt.ylabel('CVMSE',fontsize=8)
-plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img10c_p.png') 
+plt.savefig(path_data+'img4b_p.png') 
 plt.close()
 
 
 
-#FIGURE 11 : Iteration Vs Rsquare
-plt.figure(figsize = (6,4))
-plt.plot(BEST[:,0],BEST[:,n+8], 'o-', color='red',lw=0.5, ms=2, label='$R^2$_Relaxo')
-plt.plot(BEST[:,0],BEST[:,n+9], 'o--', color='red',lw=0.5, ms=2, label='P$R^2$_Relaxo')
-plt.plot(bestlasso[:,0],bestlasso[:,n+8], 'o-', color='black',lw=0.5, ms=2, label='$R^2$_Lasso')
-plt.plot(bestlasso[:,0],bestlasso[:,n+9], 'o--', color='black',lw=0.5, ms=2, label='P$R^2$_Lasso')
-plt.tick_params(axis='both',labelsize=6)  
-plt.xlabel('Iteration', fontsize=8)
-plt.ylabel('$R^2$',fontsize=8)
-plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img11a_p.png') 
-plt.close()
 
-plt.figure(figsize = (6,4))
-plt.plot(BEST[:,0],BEST[:,n+8], 'o-', color='red',lw=0.5, ms=2, label='$R^2$_Relaxo')
-plt.plot(bestlasso[:,0],bestlasso[:,n+8], 'o-', color='black',lw=0.5, ms=2, label='$R^2$_Lasso')
-plt.tick_params(axis='both',labelsize=6)  
-plt.xlabel('Iteration', fontsize=8)
-plt.ylabel('$R^2$',fontsize=8)
-plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img11b_p.png') 
-plt.close()
 
-plt.figure(figsize = (6,4))
-plt.plot(BEST[:,0],BEST[:,n+9], 'o--', color='red',lw=0.5, ms=2, label='P$R^2$_Relaxo')
-plt.plot(bestlasso[:,0],bestlasso[:,n+9], 'o--', color='black',lw=0.5, ms=2, label='P$R^2$_Lasso')
-plt.tick_params(axis='both',labelsize=6)  
-plt.xlabel('Iteration', fontsize=8)
-plt.ylabel('$PR^2$',fontsize=8)
-plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img11c_p.png') 
-plt.close()
-
-plt.figure(figsize = (6,4))
-plt.plot(BEST[:,0],BEST[:,n+10], 'o-', color='red',lw=0.5, ms=2, label='$R^2$_Adj_Relaxo')
-plt.plot(BEST[:,0],BEST[:,n+11], 'o--', color='red',lw=0.5, ms=2, label='P$R^2$_Adj_Relaxo')
-plt.plot(bestlasso[:,0],bestlasso[:,n+10], 'o-', color='black',lw=0.5, ms=2, label='$R^2$_Adj_Lasso')
-plt.plot(bestlasso[:,0],bestlasso[:,n+11], 'o--', color='black',lw=0.5, ms=2, label='P$R^2$_Adj_Lasso')
-plt.tick_params(axis='both',labelsize=6)  
-plt.xlabel('Iteration', fontsize=8)
-plt.ylabel('Adjusted $R^2$ ',fontsize=8)
-plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img11d_p.png') 
-plt.close()
-
+#FIGURE 5 : Iteration Vs Rsquare
 plt.figure(figsize = (6,4))
 plt.plot(BEST[:,0],BEST[:,n+10], 'o-', color='red',lw=0.5, ms=2, label='$R^2$_Adj_Relaxo')
 plt.plot(bestlasso[:,0],bestlasso[:,n+10], 'o-', color='black',lw=0.5, ms=2, label='$R^2$_Adj_Lasso')
@@ -650,7 +455,7 @@ plt.tick_params(axis='both',labelsize=6)
 plt.xlabel('Iteration', fontsize=8)
 plt.ylabel('Adjusted $R^2$',fontsize=8)
 plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img11e_p.png') 
+plt.savefig(path_data+'img5a_p.png') 
 plt.close()
 
 plt.figure(figsize = (6,4))
@@ -660,12 +465,12 @@ plt.tick_params(axis='both',labelsize=6)
 plt.xlabel('Iteration', fontsize=8)
 plt.ylabel('Adjusted $PR^2$ ',fontsize=8)
 plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img11f_p.png') 
+plt.savefig(path_data+'img5b_p.png') 
 plt.close()
 
 
 
-#####FIGURE 12#####
+#####FIGURE 6#####
 ###MSE###
 plt.figure(figsize = (6,4))
 plt.plot(keeprelaxo[keeprelaxo[:,5+n]==1][:,0],keeprelaxo[keeprelaxo[:,5+n]==1][:,n+6], 'o--', color='red',lw=0.5, ms=2, label='MSE_Relaxo')
@@ -674,7 +479,7 @@ plt.tick_params(axis='both',labelsize=6)
 plt.xlabel('Iteration', fontsize=8)
 plt.ylabel('$MSE$ (nnz=1)',fontsize=8)
 plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img12a1_p.png')
+plt.savefig(path_data+'img6a_p.png')
 plt.close()
 
 plt.figure(figsize = (6,4))
@@ -684,19 +489,11 @@ plt.tick_params(axis='both',labelsize=6)
 plt.xlabel('Iteration', fontsize=8)
 plt.ylabel('$MSE$ (nnz=2)',fontsize=8)
 plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img12a2_p.png')
+plt.savefig(path_data+'img6b_p.png')
 plt.close()
 
-plt.figure(figsize = (6,4))
-plt.plot(keeprelaxo[keeprelaxo[:,5+n]==3][:,0],keeprelaxo[keeprelaxo[:,5+n]==3][:,n+6], 'o--', color='red',lw=0.5, ms=2, label='MSE_Relaxo')
-plt.plot(keeplasso[keeplasso[:,5+n]==3][:,0],keeplasso[keeplasso[:,5+n]==3][:,n+6], 'o--', color='black',lw=0.5, ms=2, label='MSE_Lasso')
-plt.tick_params(axis='both',labelsize=6)  
-plt.xlabel('Iteration', fontsize=8)
-plt.ylabel('$MSE$ (nnz=3)',fontsize=8)
-plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img12a3_p.png')
-plt.close()
 
+#####FIGURE 7#####
 ####PMSE######
 plt.figure(figsize = (6,4))
 plt.plot(keeprelaxo[keeprelaxo[:,5+n]==1][:,0],keeprelaxo[keeprelaxo[:,5+n]==1][:,n+7], 'o--', color='red',lw=0.5, ms=2, label='PMSE_Relaxo')
@@ -705,7 +502,7 @@ plt.tick_params(axis='both',labelsize=6)
 plt.xlabel('Iteration', fontsize=8)
 plt.ylabel('$PMSE$ (nnz=1)',fontsize=8)
 plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img12b1_p.png')
+plt.savefig(path_data+'img7a_p.png')
 plt.close()
 
 plt.figure(figsize = (6,4))
@@ -715,53 +512,16 @@ plt.tick_params(axis='both',labelsize=6)
 plt.xlabel('Iteration', fontsize=8)
 plt.ylabel('$PMSE$ (nnz=2)',fontsize=8)
 plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img12b2_p.png')
-plt.close()
-
-plt.figure(figsize = (6,4))
-plt.plot(keeprelaxo[keeprelaxo[:,5+n]==3][:,0],keeprelaxo[keeprelaxo[:,5+n]==3][:,n+7], 'o--', color='red',lw=0.5, ms=2, label='PMSE_Relaxo')
-plt.plot(keeplasso[keeplasso[:,5+n]==3][:,0],keeplasso[keeplasso[:,5+n]==3][:,n+7], 'o--', color='black',lw=0.5, ms=2, label='PMSE_Lasso')
-plt.tick_params(axis='both',labelsize=6)  
-plt.xlabel('Iteration', fontsize=8)
-plt.ylabel('$PMSE$ (nnz=3)',fontsize=8)
-plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img12b3_p.png')
-plt.close()
-
-
-####R^2 TV######
-plt.figure(figsize = (6,4))
-plt.plot(keeprelaxo[keeprelaxo[:,5+n]==1][:,0],keeprelaxo[keeprelaxo[:,5+n]==1][:,n+8], 'o--', color='red',lw=0.5, ms=2, label='$R^2$_Relaxo')
-plt.plot(keeplasso[keeplasso[:,5+n]==1][:,0],keeplasso[keeplasso[:,5+n]==1][:,n+8], 'o--', color='black',lw=0.5, ms=2, label='$R^2$_Lasso')
-plt.tick_params(axis='both',labelsize=6)  
-plt.xlabel('Iteration', fontsize=8)
-plt.ylabel('$R^2$ (nnz=1)',fontsize=8)
-plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img12c1_p.png')
-plt.close()
-
-plt.figure(figsize = (6,4))
-plt.plot(keeprelaxo[keeprelaxo[:,5+n]==2][:,0],keeprelaxo[keeprelaxo[:,5+n]==2][:,n+8], 'o--', color='red',lw=0.5, ms=2, label='$R^2$_Relaxo')
-plt.plot(keeplasso[keeplasso[:,5+n]==2][:,0],keeplasso[keeplasso[:,5+n]==2][:,n+8], 'o--', color='black',lw=0.5, ms=2, label='$R^2$_Lasso')
-plt.tick_params(axis='both',labelsize=6)  
-plt.xlabel('Iteration', fontsize=8)
-plt.ylabel('$R^2$ (nnz=2)',fontsize=8)
-plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img12c2_p.png')
-plt.close()
-
-plt.figure(figsize = (6,4))
-plt.plot(keeprelaxo[keeprelaxo[:,5+n]==3][:,0],keeprelaxo[keeprelaxo[:,5+n]==3][:,n+8], 'o--', color='red',lw=0.5, ms=2, label='$R^2$_Relaxo')
-plt.plot(keeplasso[keeplasso[:,5+n]==3][:,0],keeplasso[keeplasso[:,5+n]==3][:,n+8], 'o--', color='black',lw=0.5, ms=2, label='$R^2$_Lasso')
-plt.tick_params(axis='both',labelsize=6)  
-plt.xlabel('Iteration', fontsize=8)
-plt.ylabel('$R^2$ (nnz=3)',fontsize=8)
-plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img12c3_p.png')
+plt.savefig(path_data+'img7b_p.png')
 plt.close()
 
 
 
+
+
+
+
+#####FIGURE 8#####
 ####Adj R^2 TV######
 plt.figure(figsize = (6,4))
 plt.plot(keeprelaxo[keeprelaxo[:,5+n]==1][:,0],keeprelaxo[keeprelaxo[:,5+n]==1][:,n+10], 'o--', color='red',lw=0.5, ms=2, label='Adj_$R^2$_Relaxo')
@@ -770,7 +530,7 @@ plt.tick_params(axis='both',labelsize=6)
 plt.xlabel('Iteration', fontsize=8)
 plt.ylabel('Adjusted $R^2$ (nnz=1)',fontsize=8)
 plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img12d1_p.png')
+plt.savefig(path_data+'img8a_p.png')
 plt.close()
 
 plt.figure(figsize = (6,4))
@@ -780,53 +540,12 @@ plt.tick_params(axis='both',labelsize=6)
 plt.xlabel('Iteration', fontsize=8)
 plt.ylabel('Adjusted $R^2$ (nnz=2)',fontsize=8)
 plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img12d2_p.png')
-plt.close()
-
-plt.figure(figsize = (6,4))
-plt.plot(keeprelaxo[keeprelaxo[:,5+n]==3][:,0],keeprelaxo[keeprelaxo[:,5+n]==3][:,n+10], 'o--', color='red',lw=0.5, ms=2, label='Adj_$R^2$_Relaxo')
-plt.plot(keeplasso[keeplasso[:,5+n]==3][:,0],keeplasso[keeplasso[:,5+n]==3][:,n+10], 'o--', color='black',lw=0.5, ms=2, label='Adj_$R^2$_Lasso')
-plt.tick_params(axis='both',labelsize=6)  
-plt.xlabel('Iteration', fontsize=8)
-plt.ylabel('Adjusted $R^2$ (nnz=3)',fontsize=8)
-plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img12d3_p.png')
-plt.close()
-
-
-####R^2 Test######
-plt.figure(figsize = (6,4))
-plt.plot(keeprelaxo[keeprelaxo[:,5+n]==1][:,0],keeprelaxo[keeprelaxo[:,5+n]==1][:,n+9], 'o--', color='red',lw=0.5, ms=2, label='$PR^2$_Relaxo')
-plt.plot(keeplasso[keeplasso[:,5+n]==1][:,0],keeplasso[keeplasso[:,5+n]==1][:,n+9], 'o--', color='black',lw=0.5, ms=2, label='$PR^2$_Lasso')
-plt.tick_params(axis='both',labelsize=6)  
-plt.xlabel('Iteration', fontsize=8)
-plt.ylabel('$PR^2$ (nnz=1)',fontsize=8)
-plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img12e1_p.png')
-plt.close()
-
-plt.figure(figsize = (6,4))
-plt.plot(keeprelaxo[keeprelaxo[:,5+n]==2][:,0],keeprelaxo[keeprelaxo[:,5+n]==2][:,n+9], 'o--', color='red',lw=0.5, ms=2, label='$PR^2$_Relaxo')
-plt.plot(keeplasso[keeplasso[:,5+n]==2][:,0],keeplasso[keeplasso[:,5+n]==2][:,n+9], 'o--', color='black',lw=0.5, ms=2, label='$PR^2$_Lasso')
-plt.tick_params(axis='both',labelsize=6)  
-plt.xlabel('Iteration', fontsize=8)
-plt.ylabel('$PR^2$ (nnz=2)',fontsize=8)
-plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img12e2_p.png')
-plt.close()
-
-plt.figure(figsize = (6,4))
-plt.plot(keeprelaxo[keeprelaxo[:,5+n]==3][:,0],keeprelaxo[keeprelaxo[:,5+n]==3][:,n+9], 'o--', color='red',lw=0.5, ms=2, label='$PR^2$_Relaxo')
-plt.plot(keeplasso[keeplasso[:,5+n]==3][:,0],keeplasso[keeplasso[:,5+n]==3][:,n+9], 'o--', color='black',lw=0.5, ms=2, label='$PR^2$_Lasso')
-plt.tick_params(axis='both',labelsize=6)  
-plt.xlabel('Iteration', fontsize=8)
-plt.ylabel('$PR^2$ (nnz=3)',fontsize=8)
-plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img12e3_p.png')
+plt.savefig(path_data+'img8b_p.png')
 plt.close()
 
 
 
+#####FIGURE 9#####
 ####Adj R^2 Test######
 plt.figure(figsize = (6,4))
 plt.plot(keeprelaxo[keeprelaxo[:,5+n]==1][:,0],keeprelaxo[keeprelaxo[:,5+n]==1][:,n+11], 'o--', color='red',lw=0.5, ms=2, label='Adj_$PR^2$_Relaxo')
@@ -835,7 +554,7 @@ plt.tick_params(axis='both',labelsize=6)
 plt.xlabel('Iteration', fontsize=8)
 plt.ylabel('Adjusted $PR^2$ (nnz=1)',fontsize=8)
 plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img12f1_p.png')
+plt.savefig(path_data+'img9a_p.png')
 plt.close()
 
 plt.figure(figsize = (6,4))
@@ -845,76 +564,23 @@ plt.tick_params(axis='both',labelsize=6)
 plt.xlabel('Iteration', fontsize=8)
 plt.ylabel('Adjusted $PR^2$ (nnz=2)',fontsize=8)
 plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img12f2_p.png')
+plt.savefig(path_data+'img9b_p.png')
 plt.close()
 
-plt.figure(figsize = (6,4))
-plt.plot(keeprelaxo[keeprelaxo[:,5+n]==3][:,0],keeprelaxo[keeprelaxo[:,5+n]==3][:,n+11], 'o--', color='red',lw=0.5, ms=2, label='Adj_$PR^2$_Relaxo')
-plt.plot(keeplasso[keeplasso[:,5+n]==3][:,0],keeplasso[keeplasso[:,5+n]==3][:,n+11], 'o--', color='black',lw=0.5, ms=2, label='Adj_$PR^2$_Lasso')
-plt.tick_params(axis='both',labelsize=6)  
+
+
+#FIGURE 11 : Iteration Vs Features Rate
+plt.figure(figsize = (6,4))                        
+for t in range(n) :
+    plt.plot(np.linspace(0,bt-1,bt),sort_features[:,t], 'o--', lw=0.5, ms=2, label=featureslabel[t])
+plt.tick_params(axis='both',labelsize=8)  
 plt.xlabel('Iteration', fontsize=8)
-plt.ylabel('Adjusted $PR^2$ (nnz=3)',fontsize=8)
-plt.legend( fontsize = 6)   
-plt.savefig(path_data+'img12f3_p.png')
+plt.ylabel('Features Rate',fontsize=8)
+plt.legend( fontsize = 6, loc='upper left')  
+plt.savefig(path_data+'img11_p.png')   
 plt.close()
-
 
 
 end = time.time() 
 print(f"Total runtime of the program is {end - begin}")
 
-
-
-
-##################UAT THE FUNCTION  trainvalid data only##########################
-
-tol=1e-6
-model2 = linear_model.Lasso(alpha=1, tol=tol, fit_intercept=False)
-model2.fit(trainvalid_data_standardized, trainvalid_y_centered)
-print('Coefficients_lasso cek: ', model2.coef_)
-pred_train_lasso= model2.predict(trainvalid_data_standardized)
-print(mean_squared_error(trainvalid_y_centered,pred_train_lasso))
-
-theta_lasso=coordinate_descent_lasso(initial_theta,trainvalid_data_standardized, trainvalid_y_centered,1, tol)
-print(theta_lasso)
-print(theta_lasso/std_tv)
-y_pred = np.dot(trainvalid_data_standardized,theta_lasso).reshape(-1,1)
-mse1=get_MSE(trainvalid_y_centered, y_pred)
-print('mse:', mse1)
-
-t=0.5
-theta_LSf=theta_LS_full (theta_lasso, trainvalid_data_standardized, trainvalid_y_centered)
-theta_relaxo=(t*theta_lasso+(1-t)*theta_LSf)# /std for ori_thetarelaxo_tv
-print('theta relaxo:', theta_relaxo)
-print('theta relaxo ori:', theta_relaxo/std_tv)
-
-
-
-
-##################UAT THE FUNCTION  on Full Data##########################
-print('FULL DATA')
-X_standardized, std = normalize_features(X_ori)
-y_centered = centered_output(y)
-lamda=1
-gama=0.5
-tol=1e-10
-
-model2 = linear_model.Lasso(alpha=lamda, tol=tol, fit_intercept=False)
-model2.fit(X_standardized, y_centered)
-print('Coefficients_lasso cek: ', model2.coef_)
-print('Coefficients_lasso_ori cek: ', model2.coef_/std)
-pred_train_lasso= model2.predict(X_standardized)
-print(mean_squared_error(y_centered,pred_train_lasso))
-
-theta_lasso=coordinate_descent_lasso(initial_theta,X_standardized, y_centered,lamda, tol)
-print('theta lasso:',theta_lasso)
-print('theta lasso ori:',theta_lasso/std)
-y_pred = np.dot(X_standardized,theta_lasso).reshape(-1,1)
-mse1=get_MSE(y_centered, y_pred)
-print('mse:', mse1)
-
-
-theta_LSf=theta_LS_full (theta_lasso, X_standardized, y_centered)
-theta_relaxo=(gama*theta_lasso+(1-gama)*theta_LSf)# /std for ori_thetarelaxo_tv
-print('theta relaxo:', theta_relaxo)
-print('theta relaxo ori:', theta_relaxo/std)
